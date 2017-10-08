@@ -876,6 +876,7 @@ config USB_DUN_SUPPORT
 	  This function makes connection to acm from data router.
 	  It uses misc register.
 	  Support fops : open, close, release, read, poll, llseek, ioctl
+
 config USB_NCM_SUPPORT_MTU_CHANGE
 	boolean "Samsung NCM MTU Change function"
 	depends on USB_G_ANDROID
@@ -884,11 +885,29 @@ config USB_NCM_SUPPORT_MTU_CHANGE
 	   for samsung gadget driver.
 	   If you enable this option,
 	   NCM MTU Change will be able to be used.
+
 config USB_RNDIS_MULTIPACKET
 	boolean "Samsung Rndis Multi Packet support"
 	depends on USB_G_ANDROID
 	help
 		Rndis Multipacket Support.
+
+config USB_RNDIS_CMCC
+	boolean "Usb Tethering for CMCC requirement"
+	depends on USB_G_ANDROID
+	help
+		for better usb tethering performance 
+
+config USB_RNDIS_VZW_REQ
+	boolean "Samsung USB RNDIS 5.x function"
+	depends on USB_G_ANDROID
+	help
+	  Provides USB RNDIS version 5.x support
+	  for samsung gadget driver.
+	  If you enable this option,
+	  you can connect via RNDIS 5.x.
+	  It's VZW carrier concept.
+
 config USB_ANDROID_RNDIS_DWORD_ALIGNED
 	boolean "Use double word aligned"
 	depends on USB_G_ANDROID

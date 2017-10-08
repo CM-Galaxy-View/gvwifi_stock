@@ -156,6 +156,7 @@ static inline int qlen(struct usb_gadget *gadget)
 	xprintk(dev , KERN_INFO , fmt , ## args)
 
 /*-------------------------------------------------------------------------*/
+int tx_queue_threshold = 10;
 
 /* NETWORK DRIVER HOOKUP (to the layer above this driver) */
 
@@ -732,8 +733,10 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 	atomic_dec(&dev->tx_qlen);
 #endif
 
-	if (netif_carrier_ok(dev->net))
-		netif_wake_queue(dev->net);
+	if(dev->no_tx_req_used <= tx_queue_threshold) {
+		if (netif_carrier_ok(dev->net))
+			netif_wake_queue(dev->net);
+	}
 }
 
 static inline int is_promisc(u16 cdc_filter)
