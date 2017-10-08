@@ -483,6 +483,7 @@ static int mobicore_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
 		mc_cpu_online(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
