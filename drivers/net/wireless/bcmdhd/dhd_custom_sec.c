@@ -307,18 +307,11 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"LY", "LI", 4},
 	{"BO", "NG", 0},
 	{"UM", "PR", 38},
-#if defined(BCM43430_CHIP) || defined(BCM43455_CHIP) || defined(BCM43454_CHIP)
-#ifdef DHD_SUPPORT_FCC_US_988
 	/* Support FCC 15.407 (Part 15E) Changes, effective June 2 2014 */
+	/* US/988, Q2/993 country codes with higher power on UNII-1 5G band */
 	{"US", "US", 988},
+	{"CU", "US", 988},
 	{"CA", "Q2", 993},
-#else
-	{"US", "US", 1},
-	{"CA", "US", 1},
-#endif /* DHD_SUPPORT_FCC_US_988 */
-#else /* BCM4354, BCM4339, BCM4335 */
-	{"CA", "US", 0},
-#endif /* defined(BCM43430_CHIP) || defined(BCM43455_CHIP) || defined(BCM43454_CHIP) */
 #endif /* default ccode/regrev */
 };
 
