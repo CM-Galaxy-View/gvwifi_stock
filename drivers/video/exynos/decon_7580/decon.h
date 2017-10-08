@@ -600,6 +600,40 @@ void DISP_SS_EVENT_SIZE_ERR_LOG(struct v4l2_subdev *sd, struct disp_ss_size_info
 * END of CONFIG_DECON_EVENT_LOG
 */
 
+struct dpu {
+	u32 scr_onoff;
+	u32 scr_red;
+	u32 scr_green;
+	u32 scr_blue;
+	u32 scr_cyan;
+	u32 scr_magenta;
+	u32 scr_yellow;
+	u32 scr_white;
+	u32 scr_black;
+
+	u32 gamma_onoff;
+	u32 gamma_set;
+
+	u32 hue_onoff;
+	u32 hue_red;
+	u32 hue_green;
+	u32 hue_blue;
+	u32 hue_cyan;
+	u32 hue_magenta;
+	u32 hue_yellow;
+
+	u32 saturation_onoff;
+	u32 saturation_red;
+	u32 saturation_green;
+	u32 saturation_blue;
+	u32 saturation_magenta;
+	u32 saturation_yellow;
+	u32 saturation_shift;
+	u32 saturation_scale;
+	u32 saturation_total;
+};
+
+
 struct decon_device {
 	void __iomem			*regs;
 	struct device			*dev;
@@ -677,6 +711,12 @@ struct decon_device {
 	struct decon_regs_data win_regs;
 	unsigned int force_fullupdate;
 	int		trigger_enable;
+
+#if defined(CONFIG_EXYNOS_DECON_DPU)
+	struct dentry			*dpu_set;
+	struct dpu			dpu_save;
+#endif
+
 };
 
 static inline struct decon_device *get_decon_drvdata(u32 id)
