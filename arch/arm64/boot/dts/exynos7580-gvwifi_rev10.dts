@@ -1463,7 +1463,12 @@
 				120 1600000 0 1600000 0 825000 100000 1 1
 				>;
 		};
-
+		boot_device@4 {
+			net_boost,label="USB";
+			net_boost,node="rndis0";
+			net_boost,table_size = <1>;
+			net_boost,table= < 1 0 0 0 0 0 0 0 1 >;
+		};
 		/* Example
 		   boot_device@2 {
 		   net_boost,label="EMMC";
