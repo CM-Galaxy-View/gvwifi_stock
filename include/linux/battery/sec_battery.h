@@ -238,6 +238,9 @@ struct sec_battery_info {
 	bool complete_timetofull;
 	struct delayed_work timetofull_work;
 #endif
+#if defined(CONFIG_BATTERY_SMART)
+	bool detect_invalid_port;
+#endif
 };
 
 ssize_t sec_bat_show_attrs(struct device *dev,
@@ -357,6 +360,7 @@ enum {
 	HMT_TA_CHARGE,
 #if defined(CONFIG_BATTERY_SMART)
 	FG_FIRMWARE,
+	DETECT_INVALID_PORT,
 #endif
 #if defined(CONFIG_BATTERY_AGE_FORECAST)
 	FG_CYCLE,

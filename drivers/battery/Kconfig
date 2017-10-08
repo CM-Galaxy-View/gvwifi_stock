@@ -394,3 +394,9 @@ config STORE_MODE
        default n
        help
 	 Say Y to enable CONFIG_STORE_MODE
+
+config CHARGING_VZWCONCEPT
+	tristate "VZW concept about the charging"
+	default n
+	help
+	 Say Y to include support for the VZW concepts.

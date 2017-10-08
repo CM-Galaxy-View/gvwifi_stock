@@ -91,6 +91,7 @@ static struct device_attribute sec_battery_attrs[] = {
 	SEC_BATTERY_ATTR(hmt_ta_charge),
 #if defined(CONFIG_BATTERY_SMART)
 	SEC_BATTERY_ATTR(fg_firmware),
+	SEC_BATTERY_ATTR(detect_invalid_port)
 #endif
 };
 
@@ -2471,7 +2472,7 @@ continue_monitor:
 					POWER_SUPPLY_STATUS_DISCHARGING);
 			sec_bat_set_charge(battery, false);
 		}
-		if ((battery->capacity <= STORE_MODE_CHARGING_MAX) && (battery->status == POWER_SUPPLY_STATUS_DISCHARGING)) {
+		if ((battery->capacity <= STORE_MODE_CHARGING_MIN) && (battery->status == POWER_SUPPLY_STATUS_DISCHARGING)) {
 			sec_bat_set_charging_status(battery,
 					POWER_SUPPLY_STATUS_CHARGING);
 			sec_bat_set_charge(battery, true);
@@ -2927,6 +2928,14 @@ ssize_t sec_bat_show_attrs(struct device *dev,
 					value.intval);
 		}
 		break;
+	case DETECT_INVALID_PORT:
+	{
+		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
+			       battery->detect_invalid_port);
+		dev_info(battery->dev, "%s[%s] : DETECT_INVALID_PORT(%d)\n", __func__,
+			 buf + i, battery->detect_invalid_port);
+	}
+		break;
 #endif
 	default:
 		i = -EINVAL;
@@ -3363,6 +3372,8 @@ ssize_t sec_bat_store_attrs(
 		break;
 #if defined(CONFIG_BATTERY_SMART)
 	case FG_FIRMWARE:
+		break;
+	case DETECT_INVALID_PORT:
 		break;
 #endif
 	default:
@@ -4474,6 +4485,136 @@ static int sec_bat_parse_dt(struct device *dev,
 }
 #endif
 
+#if defined(CONFIG_MUIC_NOTIFIER)
+static int sec_bat_cable_check(struct sec_battery_info *battery,
+				muic_attached_dev_t attached_dev)
+{
+	int current_cable_type = -1;
+
+	pr_info("[%s]ATTACHED(%d)\n", __func__, attached_dev);
+
+	switch (attached_dev)
+	{
+	case ATTACHED_DEV_SMARTDOCK_MUIC:
+	case ATTACHED_DEV_DESKDOCK_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_BATTERY;
+		break;
+	case ATTACHED_DEV_OTG_MUIC:
+	case ATTACHED_DEV_JIG_UART_OFF_VB_OTG_MUIC:
+	case ATTACHED_DEV_HMT_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_OTG;
+		break;
+	case ATTACHED_DEV_USB_MUIC:
+	case ATTACHED_DEV_JIG_USB_OFF_MUIC:
+	case ATTACHED_DEV_JIG_USB_ON_MUIC:
+	case ATTACHED_DEV_SMARTDOCK_USB_MUIC:
+	case ATTACHED_DEV_UNOFFICIAL_ID_USB_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_USB;
+		break;
+	case ATTACHED_DEV_JIG_UART_OFF_VB_MUIC:
+	case ATTACHED_DEV_JIG_UART_OFF_VB_FG_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_UARTOFF;
+		break;
+	case ATTACHED_DEV_TA_MUIC:
+	case ATTACHED_DEV_CARDOCK_MUIC:
+	case ATTACHED_DEV_DESKDOCK_VB_MUIC:
+	case ATTACHED_DEV_SMARTDOCK_TA_MUIC:
+	case ATTACHED_DEV_AFC_CHARGER_5V_MUIC:
+	case ATTACHED_DEV_UNOFFICIAL_TA_MUIC:
+	case ATTACHED_DEV_UNOFFICIAL_ID_TA_MUIC:
+	case ATTACHED_DEV_UNOFFICIAL_ID_ANY_MUIC:
+	case ATTACHED_DEV_QC_CHARGER_5V_MUIC:
+	case ATTACHED_DEV_UNSUPPORTED_ID_VB_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_MAINS;
+		break;
+	case ATTACHED_DEV_CDP_MUIC:
+	case ATTACHED_DEV_UNOFFICIAL_ID_CDP_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_USB_CDP;
+		break;
+	case ATTACHED_DEV_USB_LANHUB_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_LAN_HUB;
+		break;
+	case ATTACHED_DEV_CHARGING_CABLE_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_POWER_SHARING;
+		break;
+	case ATTACHED_DEV_AFC_CHARGER_PREPARE_MUIC:
+	case ATTACHED_DEV_QC_CHARGER_PREPARE_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_HV_PREPARE_MAINS;
+		break;
+	case ATTACHED_DEV_AFC_CHARGER_9V_MUIC:
+	case ATTACHED_DEV_QC_CHARGER_9V_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_HV_MAINS;
+		break;
+	case ATTACHED_DEV_AFC_CHARGER_ERR_V_MUIC:
+	case ATTACHED_DEV_QC_CHARGER_ERR_V_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_HV_ERR;
+		break;
+	case ATTACHED_DEV_UNDEFINED_CHARGING_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_MAINS;
+		break;
+	case ATTACHED_DEV_HV_ID_ERR_UNDEFINED_MUIC:
+	case ATTACHED_DEV_HV_ID_ERR_UNSUPPORTED_MUIC:
+	case ATTACHED_DEV_HV_ID_ERR_SUPPORTED_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_HV_UNKNOWN;
+		break;
+	case ATTACHED_DEV_VZW_INCOMPATIBLE_MUIC:
+		current_cable_type = POWER_SUPPLY_TYPE_UNKNOWN;
+		break;
+	default:
+		pr_err("%s: invalid type for charger:%d\n",
+			__func__, attached_dev);
+	}
+
+	return current_cable_type;
+
+}
+
+static int batt_handle_notification(struct notifier_block *nb,
+		unsigned long action, void *data)
+{
+	muic_attached_dev_t attached_dev = *(muic_attached_dev_t *)data;
+	const char *cmd;
+	int cable_type;
+	struct sec_battery_info *battery =
+		container_of(nb, struct sec_battery_info,
+			     batt_nb);
+
+	switch (action) {
+	case MUIC_NOTIFY_CMD_DETACH:
+	case MUIC_NOTIFY_CMD_LOGICALLY_DETACH:
+		cmd = "DETACH";
+		cable_type = POWER_SUPPLY_TYPE_BATTERY;
+		battery->muic_cable_type = ATTACHED_DEV_NONE_MUIC;
+		break;
+	case MUIC_NOTIFY_CMD_ATTACH:
+	case MUIC_NOTIFY_CMD_LOGICALLY_ATTACH:
+		cmd = "ATTACH";
+		cable_type = sec_bat_cable_check(battery, attached_dev);
+		battery->muic_cable_type = attached_dev;
+		break;
+	default:
+		cmd = "ERROR";
+		cable_type = -1;
+		battery->muic_cable_type = ATTACHED_DEV_NONE_MUIC;
+		break;
+	}
+
+	if (cable_type == POWER_SUPPLY_TYPE_MAINS) {
+		battery->detect_invalid_port = true;
+	} else {
+		battery->detect_invalid_port = false;
+	}
+	pr_info("%s: DETECT_INVALID_PORT %d\n", __func__, battery->detect_invalid_port);
+
+  	if (battery->voltage_now > 0)
+		battery->voltage_now--;
+
+	power_supply_changed(&battery->psy_bat);
+
+	return 0;
+}
+#endif /* CONFIG_MUIC_NOTIFIER */
+
 #ifdef CONFIG_OF
 extern sec_battery_platform_data_t sec_battery_pdata;
 #endif
@@ -4554,6 +4695,7 @@ static int __devinit sec_battery_probe(struct platform_device *pdev)
 		SEC_BATTERY_POLLING_TIME_DISCHARGING];
 	battery->polling_in_sleep = false;
 	battery->polling_short = false;
+	battery->detect_invalid_port = false;
 
 	battery->check_count = 0;
 	battery->check_adc_count = 0;
@@ -4763,6 +4905,11 @@ static int __devinit sec_battery_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
+#if defined(CONFIG_MUIC_NOTIFIER)
+	muic_notifier_register(&battery->batt_nb,
+			       batt_handle_notification,
+			       MUIC_NOTIFY_DEV_CHARGER);
+#endif
 	if(gpio_get_value(battery->pdata->cable_irq_gpio)) {
 		pr_info("PIN HIGH\n");
 		battery->cable_type = POWER_SUPPLY_TYPE_MAINS;
